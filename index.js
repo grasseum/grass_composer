@@ -1,7 +1,7 @@
 var stream = require('stream')
 var util = require('util');
 
-var pasteur = require("pasteur")._;
+var pasteur = require("compt")._;
 
 var Transform = stream.Transform ||
   require('readable-stream').Transform;

@@ -1,12 +1,22 @@
 {
-  "name": "grass_composer",
+  "name": "@grasseum/grass_composer",
   "version": "1.0.0",
-  "description": "",
+  "description": "Content ",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grasseum/grass_composer.git"
+  },
+  "keywords": [
+    "Grasseum"
+  ],
   "author": "Pein Freccs",
-  "license": "MIT"
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/grasseum/grass_composer/issues"
+  },
+  "homepage": "https://github.com/grasseum/grass_composer#readme"
 }

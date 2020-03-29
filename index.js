@@ -1,15 +1,20 @@
 var stream = require('stream')
 var util = require('util');
 
-var pasteur = require("compt")._;
+var compt = require("compt")._;
 
 var Transform = stream.Transform ||
   require('readable-stream').Transform;
 
+let read_file = require("grasseum_directory/read_file");
+let write_file = require("grasseum_directory/write_file");
+let configlib = require("grass_composer/configlib")
+
+
 
 function script_composer(command,interpolation){
     
-    
+  
      Transform.call(this, {objectMode: true});
      this._destroyed = false
      this._lastLineData ='';
@@ -37,6 +42,11 @@ script_composer.prototype.destroy = function (err) {
     })
 };
 
+script_composer.prototype.complete = function(clean_lines,data,done){
+  clean_lines.push(data);
+   clean_lines.forEach(this.push.bind(this))
+   done()
+}
 script_composer.prototype._transform = function(chunk, enc, done){
 
     var data = chunk.toString()
@@ -44,44 +54,68 @@ script_composer.prototype._transform = function(chunk, enc, done){
     if (this._lastLineData) data = this._lastLineData + data
     var clean_lines = [];
   
- 
-    if(pasteur.getTypeof(this._interpolation) == "json"){
-      if(pasteur.has(this._interpolation,"data")){
-        data = pasteur.template_value(data,this._interpolation["data"]);
+    this._command['is_completed_done'] = true;
+    if(compt.getTypeof(this._interpolation) == "json"){
+      if(compt.has(this._interpolation,"data")){
+        data = compt.template_value(data,this._interpolation["data"]);
       }
 
 
-      if(pasteur.has(this._interpolation,"banner")){
-        if(pasteur.has(this._interpolation["banner"],"header")){
+      if(compt.has(this._interpolation,"banner")){
+        if(compt.has(this._interpolation["banner"],"header")){
             if(parseInt(this._command['count']) ==0){
               
-              
-             
              data = this._interpolation["banner"]['header']+data
-             
-            
+
             }
         }
 
-        if(pasteur.has(this._interpolation["banner"],"footer")){
+        if(compt.has(this._interpolation["banner"],"footer")){
           if(parseInt(this._command['count']) == parseInt(this._command['count_file_read']) -1){
             data = data+this._interpolation["banner"]['footer']
           }
         }
       }
+      if(compt.has(this._interpolation,"directory_replace_content")  ){
+        this._command['is_completed_done'] = false;
+        let target_config_regexp = configlib.regexp_default_tag_name();
+        
+        let data_content = configlib.get_list_tag_resources(data,this._interpolation)
+        let main = this;
+        setTimeout(function(){
+          
+          let data_content_file = data.replace(target_config_regexp , function(match,target_str,offset){
+              if(compt.has(data_content,target_str)){
+                return data_content[target_str];
+              }
+          });
+   
+          data = data_content_file
+         
+          main.complete(clean_lines,data,done)
+        },500)
+      
+
+       
+      }
 
       
      
     }
-    clean_lines.push(data);
-    clean_lines.forEach(this.push.bind(this))
-    done()
+   
+    if (this._command['is_completed_done']){
+     
+      this.complete(clean_lines,data,done)
+    }
+    
   
 }
 
 exports.grass_stream_config=function(){
     this.setDefaultExtension(['__any__'])
 }
+
+
 exports.grasseum_command = function(option1){
     console.log("grasseum_command");
 }

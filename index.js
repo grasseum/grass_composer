@@ -1,24 +1,28 @@
-var stream = require('stream')
-var util = require('util');
+const stream = require('stream')
+const util = require('util');
 
-var compt = require("compt")._;
+const compt = require("compts")._;
 
-var Transform = stream.Transform ||
+const Transform = stream.Transform ||
   require('readable-stream').Transform;
 
-let read_file = require("grasseum_directory/read_file");
-let write_file = require("grasseum_directory/write_file");
-let configlib = require("grass_composer/configlib")
+ // const read_file = require("grasseum_directory/read_file");
+ // const write_file = require("grasseum_directory/write_file");
+  const configlib = require("grass_composer/configlib")
 
 
 
-function script_composer(command,interpolation){
+function script_composer(interpolation){
     
   
      Transform.call(this, {objectMode: true});
      this._destroyed = false
      this._lastLineData ='';
-     this._command = command;
+     this._command = {
+       "is_completed_done":false,
+       "count":0,
+       "count_file_read":0
+     };
      this._interpolation = interpolation;
 }
 util.inherits(script_composer, Transform);
@@ -49,22 +53,27 @@ script_composer.prototype.complete = function(clean_lines,data,done){
 }
 script_composer.prototype._transform = function(chunk, enc, done){
 
-    var data = chunk.toString()
+    var data = chunk['contents']
 
     if (this._lastLineData) data = this._lastLineData + data
     var clean_lines = [];
   
     this._command['is_completed_done'] = true;
+
     if(compt.getTypeof(this._interpolation) == "json"){
+    
       if(compt.has(this._interpolation,"data")){
-        data = compt.template_value(data,this._interpolation["data"]);
+        
+        data = compt.templateValue(data,this._interpolation["data"]);
+        
       }
 
 
       if(compt.has(this._interpolation,"banner")){
         if(compt.has(this._interpolation["banner"],"header")){
+
             if(parseInt(this._command['count']) ==0){
-              
+
              data = this._interpolation["banner"]['header']+data
 
             }
@@ -91,8 +100,8 @@ script_composer.prototype._transform = function(chunk, enc, done){
           });
    
           data = data_content_file
-         
-          main.complete(clean_lines,data,done)
+          chunk['content'] = data
+          main.complete(clean_lines,chunk,done)
         },500)
       
 
@@ -104,28 +113,19 @@ script_composer.prototype._transform = function(chunk, enc, done){
     }
    
     if (this._command['is_completed_done']){
-     
-      this.complete(clean_lines,data,done)
+      chunk['contents'] = data
+      this.complete(clean_lines,chunk,done)
     }
     
   
 }
 
-exports.grass_stream_config=function(){
-    this.setDefaultExtension(['__any__'])
-}
-
-
-exports.grasseum_command = function(option1){
-    console.log("grasseum_command");
-}
-
 
   
 
-exports.grass_stream_transform = function(command,inter){
-  
-    var mindf = new script_composer(command,inter)
+module.exports = function( inter){
+
+    var mindf = new script_composer( inter)
     
 
     return mindf

@@ -4,7 +4,7 @@ let lib_error = require("grass_composer/lib/error")
 let lib_html = require("grass_composer/lib/html")
 
 let read_file = require("grasseum_directory/read_file");
-var compt = require("compt")._;
+var compt = require("compts")._;
 let path = require("path");
 exports.type_lib = function(){
     return {

@@ -3,7 +3,8 @@ let lib_js = require("grass_composer/lib/js")
 let lib_error = require("grass_composer/lib/error")
 let lib_html = require("grass_composer/lib/html")
 
-let read_file = require("grasseum_directory/read_file");
+var grasseum_directory =require("grasseum_directory");
+var read_file = grasseum_directory.read();
 var compt = require("compts")._;
 let path = require("path");
 exports.type_lib = function(){

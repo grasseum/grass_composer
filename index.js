@@ -1,33 +1,24 @@
-var stream = require('stream')
-var util = require('util');
-
-var compt = require("compt")._;
-
-var Transform = stream.Transform ||
-  require('readable-stream').Transform;
-
-let read_file = require("grasseum_directory/read_file");
-let write_file = require("grasseum_directory/write_file");
-let configlib = require("grass_composer/configlib")
+const compt = require("compts")._;
 
 
+const configlib = require("grass_composer/configlib")
 
-function script_composer(command,interpolation){
+var grasseum_util =require("grasseum_util")  
+var trasform_stream = grasseum_util.stream().trasform;
+
+function script_composer(interpolation){
     
-  
-     Transform.call(this, {objectMode: true});
-     this._destroyed = false
+      this._destroyed = false
      this._lastLineData ='';
-     this._command = command;
+     this._command = {
+       "is_completed_done":false,
+       "count":0,
+       "count_file_read":0
+     };
      this._interpolation = interpolation;
 }
-util.inherits(script_composer, Transform);
-script_composer.prototype._destroy = function (chunk, enc, cb) {
-   // this.cork();
-  
-   
-  
-};
+
+ 
 script_composer.prototype.destroy = function (err) {
   // this.cork();
   
@@ -42,92 +33,97 @@ script_composer.prototype.destroy = function (err) {
     })
 };
 
-script_composer.prototype.complete = function(clean_lines,data,done){
+script_composer.prototype.complete = function(clean_lines,data,done,self){
   clean_lines.push(data);
-   clean_lines.forEach(this.push.bind(this))
+   clean_lines.forEach(self.push.bind(self))
    done()
 }
-script_composer.prototype._transform = function(chunk, enc, done){
+script_composer.prototype.transform = function(action){
+var self = this;
 
-    var data = chunk.toString()
+  var clean_lines = [];
+    if(action.data.isGrasseumPlatform()){
+      var data = action.data['contents'].toString();
 
-    if (this._lastLineData) data = this._lastLineData + data
-    var clean_lines = [];
-  
-    this._command['is_completed_done'] = true;
-    if(compt.getTypeof(this._interpolation) == "json"){
-      if(compt.has(this._interpolation,"data")){
-        data = compt.template_value(data,this._interpolation["data"]);
-      }
+      if (this._lastLineData) data = this._lastLineData + data
+     
+    
+      this._command['is_completed_done'] = true;
 
+      if(compt.getTypeof(this._interpolation) == "json"){
+      
+        if(compt.has(this._interpolation,"data")){
 
-      if(compt.has(this._interpolation,"banner")){
-        if(compt.has(this._interpolation["banner"],"header")){
-            if(parseInt(this._command['count']) ==0){
-              
-             data = this._interpolation["banner"]['header']+data
-
-            }
+          data = compt.templateValue(data,this._interpolation["data"]);
+           
         }
 
-        if(compt.has(this._interpolation["banner"],"footer")){
-          if(parseInt(this._command['count']) == parseInt(this._command['count_file_read']) -1){
-            data = data+this._interpolation["banner"]['footer']
+
+        if(compt.has(this._interpolation,"banner")){
+          if(action.data.isFirstPath){
+
+              if(parseInt(this._command['count']) ==0){
+
+              data = this._interpolation["banner"]['header']+data
+
+              }
+          }
+          
+          if(compt.has(this._interpolation["banner"],"footer")){
+            if( action.data.isLastPath ){
+              data = data+this._interpolation["banner"]['footer']
+            }
           }
         }
-      }
-      if(compt.has(this._interpolation,"directory_replace_content")  ){
-        this._command['is_completed_done'] = false;
-        let target_config_regexp = configlib.regexp_default_tag_name();
-        
-        let data_content = configlib.get_list_tag_resources(data,this._interpolation)
-        let main = this;
-        setTimeout(function(){
+        if(compt.has(this._interpolation,"directory_replace_content")  ){
+          this._command['is_completed_done'] = false;
+          let target_config_regexp = configlib.regexp_default_tag_name();
           
-          let data_content_file = data.replace(target_config_regexp , function(match,target_str,offset){
-              if(compt.has(data_content,target_str)){
-                return data_content[target_str];
-              }
-          });
-   
-          data = data_content_file
-         
-          main.complete(clean_lines,data,done)
-        },500)
-      
+          let data_content = configlib.get_list_tag_resources(data,this._interpolation)
+          let main = this;
+          setTimeout(function(){
+            
+            let data_content_file = data.replace(target_config_regexp , function(match,target_str,offset){
+                if(compt.has(data_content,target_str)){
+                  return data_content[target_str];
+                }
+            });
+        
+           data =data_content_file;
+           action.data['contents'] = new Buffer(data);
+           main.complete(clean_lines,action.data,action.callback,action.self)
+            return
+          },500)
+        
 
-       
+        
+        }
+
+        
+      
       }
-
-      
-     
-    }
-   
-    if (this._command['is_completed_done']){
-     
-      this.complete(clean_lines,data,done)
-    }
     
-  
+      if (this._command['is_completed_done']){
+        action.data['contents'] = new Buffer(data);
+        this.complete(clean_lines,action.data,action.callback,action.self)
+        return
+      }
+    }else{
+      console.log("This module is compatible only to grasseum");
+      this.complete(clean_lines,action.data,action.callback,action.self)
+      return
+    }  
+    
 }
 
-exports.grass_stream_config=function(){
-    this.setDefaultExtension(['__any__'])
-}
-
-
-exports.grasseum_command = function(option1){
-    console.log("grasseum_command");
-}
-
 
   
 
-exports.grass_stream_transform = function(command,inter){
-  
-    var mindf = new script_composer(command,inter)
+module.exports = function( inter){
+
+    var mindf = new script_composer( inter)
     
 
-    return mindf
+    return trasform_stream(mindf)
  
 }
